@@ -115,9 +115,94 @@ These require a logged-in character. Register a developer app at
 
 - `sso_login()` — opens the EVE SSO auth URL, captures the code on localhost
 - `sso_status()`, `sso_logout()`
-- `my_wallet()`, `my_wallet_journal()`, `my_assets()`, `my_open_orders()`, `my_skills()`, `my_industry_jobs()`
+- `my_wallet()`, `my_wallet_journal()`, `my_wallet_transactions()`, `my_assets()`,
+  `my_open_orders()`, `my_order_history()`, `my_skills()`, `my_industry_jobs()`
 
-Refresh tokens are stored at `$XDG_DATA_HOME/eve-esi-mcp/sso_token.json` with mode `0600`.
+Refresh tokens are stored at `$XDG_DATA_HOME/eve-esi-mcp/sso_token.json` (on
+Windows, where `XDG_DATA_HOME` is normally unset, this resolves to
+`%USERPROFILE%\.local\share\eve-esi-mcp\sso_token.json`) with mode `0600`. The
+path is keyed off the OS user, not the process — **one login is shared by
+every editor and terminal on the same machine.** Authenticating from VS Code
+also authenticates the copy running in Zed or a bare terminal; no per-app
+re-auth needed.
+
+## Running the server
+
+The server picks its transport from how it's invoked — same binary either way.
+
+### stdio (default) — launched automatically by an editor
+
+This is what an MCP-aware editor extension expects: it starts the process,
+talks over stdin/stdout, and kills it when you close the window. You don't run
+this by hand; it's configured once in the editor's MCP settings and then just
+works.
+
+**Claude Code** (CLI, or the VS Code / Zed extension) — `~/.claude.json`:
+
+```json
+"mcpServers": {
+  "eve-esi": {
+    "type": "stdio",
+    "command": "H:\\projects\\eve-online\\MCP\\eve-esi-mcp\\.venv\\Scripts\\eve-esi-mcp.exe",
+    "args": [],
+    "env": { "EVE_ESI_MCP_CONTACT": "you@example.com" }
+  }
+}
+```
+
+This file is **user-global**, not per-project — configure it once and every
+Claude Code window on the machine (any editor, any folder) already has it.
+There's nothing to "move" between editors for a Claude Code setup.
+
+**Zed** — `settings.json` → `context_servers` (Zed's own config, separate from
+Claude Code's):
+
+```json
+"context_servers": {
+  "eve-esi": {
+    "enabled": true,
+    "command": "H:\\projects\\eve-online\\MCP\\eve-esi-mcp\\.venv\\Scripts\\eve-esi-mcp.exe",
+    "args": [],
+    "env": { "EVE_ESI_MCP_CONTACT": "you@example.com" }
+  }
+}
+```
+
+### HTTP — run standalone from any terminal
+
+Useful when you want one running instance shared by several clients, live logs
+in front of you, and a restart that's just Ctrl+C:
+
+```bash
+cd /h/projects/eve-online/MCP/eve-esi-mcp   # Git-Bash-style path
+./.venv/Scripts/eve-esi-mcp.exe --http                    # binds 127.0.0.1:8000
+./.venv/Scripts/eve-esi-mcp.exe --http --port 8770         # custom port
+./.venv/Scripts/eve-esi-mcp.exe --http --host 0.0.0.0 --port 8000  # LAN-visible — only if you mean it
+```
+
+This works identically from:
+
+- **A VS Code integrated terminal** (View → Terminal, or `` Ctrl+` ``)
+- **A Zed terminal panel** (`Ctrl+` `` ` `` , or Terminal: Open from the command palette)
+- **Windows Terminal running Git Bash / WSL bash**, standalone, outside any editor
+- **PowerShell**, same command minus the `./` prefix nuance —
+  `.\.venv\Scripts\eve-esi-mcp.exe --http`
+
+Stop it with `Ctrl+C`.
+
+Point a client at it instead of stdio:
+
+```json
+"eve-esi": {
+  "type": "http",
+  "url": "http://127.0.0.1:8000/mcp"
+}
+```
+
+**Trade-off:** stdio means the editor guarantees the server is running.
+With HTTP, if you forget to start it first, every EVE tool call fails until
+you do — there's no auto-start. Keep the stdio entry around as a fallback
+you can flip back to.
 
 ## Example model prompts
 

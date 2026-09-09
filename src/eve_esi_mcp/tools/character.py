@@ -46,6 +46,41 @@ async def my_open_orders() -> list[dict[str, Any]]:
     )
 
 
+async def my_wallet_transactions(
+    from_id: int | None = None,
+) -> list[dict[str, Any]]:
+    """Individual market fills (requires esi-wallet.read_character_wallet.v1).
+
+    Each entry: {transaction_id, date, type_id, quantity, unit_price, is_buy,
+    is_personal, client_id, location_id, journal_ref_id}. Returns the most
+    recent ~2500; pass `from_id` (a transaction_id) to page further back.
+
+    This is the per-fill detail the wallet journal lacks — use it to reconcile
+    buys against sells into round-trip trades.
+    """
+    token, cid = await _auth()
+    params = {"from_id": from_id} if from_id is not None else None
+    return await get_client().get_json(
+        f"/characters/{cid}/wallet/transactions/",
+        params=params,
+        auth_token=token,
+    )
+
+
+async def my_order_history() -> list[dict[str, Any]]:
+    """Closed market orders — filled, cancelled, or expired (requires
+    esi-markets.read_character_orders.v1).
+
+    Each entry carries `state` ("expired" covers both fully-filled and
+    time-expired) plus `volume_total` vs `volume_remain`, which is how you tell
+    a completed sale from an order that timed out unsold.
+    """
+    token, cid = await _auth()
+    return await get_client().get_all_pages(
+        f"/characters/{cid}/orders/history/", auth_token=token
+    )
+
+
 async def my_skills() -> dict[str, Any]:
     """Trained skills (requires esi-skills.read_skills.v1). Filter Accounting /
     Broker Relations / hauling skills to plug into arbitrage math."""
