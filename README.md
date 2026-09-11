@@ -15,6 +15,16 @@ The goal is turning questions like:
 
 …into tool calls the model can chain together, rather than copy-paste screenshots.
 
+## Fork notice
+
+This is a fork of [d3ej/eve-esi-mcp](https://github.com/d3ej/eve-esi-mcp), customized to add:
+
+- Wallet transactions and order history tools (character-scoped, via EVE SSO)
+- Standalone HTTP transport mode, with `--host`/`--port` flags, for running the server as one shared long-lived instance outside any single editor
+- Documentation covering terminal-based standalone running and the shared SSO token path across editors/terminals
+
+See `git log upstream/main..HEAD` for the exact diverging commits. Licensed MIT, same as upstream — see `LICENSE`.
+
 ## ESI compliance
 
 This server follows CCP's [ESI best practices](https://developers.eveonline.com/docs/services/esi/best-practices/):
@@ -122,9 +132,9 @@ Refresh tokens are stored at `$XDG_DATA_HOME/eve-esi-mcp/sso_token.json` (on
 Windows, where `XDG_DATA_HOME` is normally unset, this resolves to
 `%USERPROFILE%\.local\share\eve-esi-mcp\sso_token.json`) with mode `0600`. The
 path is keyed off the OS user, not the process — **one login is shared by
-every editor and terminal on the same machine.** Authenticating from VS Code
-also authenticates the copy running in Zed or a bare terminal; no per-app
-re-auth needed.
+every editor and terminal on the same machine.** Authenticating from one
+editor also authenticates a standalone terminal instance and any other
+MCP-aware editor on the same machine; no per-app re-auth needed.
 
 ## Running the server
 
@@ -137,13 +147,13 @@ talks over stdin/stdout, and kills it when you close the window. You don't run
 this by hand; it's configured once in the editor's MCP settings and then just
 works.
 
-**Claude Code** (CLI, or the VS Code / Zed extension) — `~/.claude.json`:
+**Claude Code** (CLI or the VS Code extension) — `~/.claude.json`:
 
 ```json
 "mcpServers": {
   "eve-esi": {
     "type": "stdio",
-    "command": "H:\\projects\\eve-online\\MCP\\eve-esi-mcp\\.venv\\Scripts\\eve-esi-mcp.exe",
+    "command": "<path-to-eve-esi-mcp>/.venv/Scripts/eve-esi-mcp.exe",
     "args": [],
     "env": { "EVE_ESI_MCP_CONTACT": "you@example.com" }
   }
@@ -154,27 +164,13 @@ This file is **user-global**, not per-project — configure it once and every
 Claude Code window on the machine (any editor, any folder) already has it.
 There's nothing to "move" between editors for a Claude Code setup.
 
-**Zed** — `settings.json` → `context_servers` (Zed's own config, separate from
-Claude Code's):
-
-```json
-"context_servers": {
-  "eve-esi": {
-    "enabled": true,
-    "command": "H:\\projects\\eve-online\\MCP\\eve-esi-mcp\\.venv\\Scripts\\eve-esi-mcp.exe",
-    "args": [],
-    "env": { "EVE_ESI_MCP_CONTACT": "you@example.com" }
-  }
-}
-```
-
 ### HTTP — run standalone from any terminal
 
 Useful when you want one running instance shared by several clients, live logs
 in front of you, and a restart that's just Ctrl+C:
 
 ```bash
-cd /h/projects/eve-online/MCP/eve-esi-mcp   # Git-Bash-style path
+cd <path-to-eve-esi-mcp>   # Git-Bash-style path
 ./.venv/Scripts/eve-esi-mcp.exe --http                    # binds 127.0.0.1:8000
 ./.venv/Scripts/eve-esi-mcp.exe --http --port 8770         # custom port
 ./.venv/Scripts/eve-esi-mcp.exe --http --host 0.0.0.0 --port 8000  # LAN-visible — only if you mean it
@@ -183,7 +179,6 @@ cd /h/projects/eve-online/MCP/eve-esi-mcp   # Git-Bash-style path
 This works identically from:
 
 - **A VS Code integrated terminal** (View → Terminal, or `` Ctrl+` ``)
-- **A Zed terminal panel** (`Ctrl+` `` ` `` , or Terminal: Open from the command palette)
 - **Windows Terminal running Git Bash / WSL bash**, standalone, outside any editor
 - **PowerShell**, same command minus the `./` prefix nuance —
   `.\.venv\Scripts\eve-esi-mcp.exe --http`
